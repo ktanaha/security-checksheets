@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { parseExcelFile, getSheetPreview } from '../services/excelService';
+import { getProjects, uploadFile } from '../services/projectService';
 import ExcelTable from '../components/organisms/ExcelTable';
 import Button from '../components/atoms/Button';
 import type { SheetInfo, SheetPreviewResponse, CellRange } from '../types/excel';
+import type { Project } from '../types/project';
 
 /**
  * Excelプレビューページ
@@ -18,6 +20,30 @@ const ExcelPreview: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedRange, setSelectedRange] = useState<CellRange | null>(null);
+
+  // ファイルアップロード関連の状態
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [selectedProjectId, setSelectedProjectId] = useState<number | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadedBy, setUploadedBy] = useState('');
+
+  // 案件一覧を取得
+  useEffect(() => {
+    const fetchProjects = async () => {
+      try {
+        const data = await getProjects();
+        setProjects(data);
+        if (data.length > 0) {
+          setSelectedProjectId(data[0].id);
+          setUploadedBy(data[0].owner);
+        }
+      } catch (err) {
+        console.error('案件一覧の取得に失敗しました:', err);
+      }
+    };
+    fetchProjects();
+  }, []);
 
   // クエリパラメータからファイルパスを取得し、自動で解析
   useEffect(() => {
@@ -86,6 +112,61 @@ const ExcelPreview: React.FC = () => {
     setSelectedRange(range);
   };
 
+  // ファイル選択ハンドラー
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Excelファイルのみ許可
+    const allowedTypes = [
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', // .xlsx
+      'application/vnd.ms-excel', // .xls
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      setError('Excelファイル（.xlsx, .xls）のみアップロード可能です');
+      e.target.value = '';
+      return;
+    }
+
+    setSelectedFile(file);
+    setError(null);
+  };
+
+  // ファイルアップロードハンドラー
+  const handleFileUpload = async () => {
+    if (!selectedFile || !selectedProjectId) {
+      setError('ファイルと案件を選択してください');
+      return;
+    }
+
+    setUploading(true);
+    setError(null);
+
+    try {
+      const uploadedFile = await uploadFile(selectedProjectId, {
+        file: selectedFile,
+        uploaded_by: uploadedBy || '匿名',
+      });
+
+      // アップロード成功後、自動的にプレビューを表示
+      setFilePath(uploadedFile.file_path);
+      await parseFile(uploadedFile.file_path);
+
+      // 成功メッセージ
+      alert(`ファイル「${uploadedFile.file_name}」をアップロードしました`);
+      setSelectedFile(null);
+
+      // ファイル入力をリセット
+      const fileInput = document.getElementById('file-upload') as HTMLInputElement;
+      if (fileInput) fileInput.value = '';
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'ファイルのアップロードに失敗しました');
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-100">
       <div className="container mx-auto p-6">
@@ -98,25 +179,104 @@ const ExcelPreview: React.FC = () => {
 
         <h1 className="text-3xl font-bold mb-6">Excelプレビュー</h1>
 
-        {/* ファイルパス入力 */}
-      <div className="mb-6">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={filePath}
-            onChange={(e) => setFilePath(e.target.value)}
-            placeholder="/app/uploads/test.xlsx"
-            className="flex-1 px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <button
-            onClick={handleParseFile}
-            disabled={loading}
-            className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400"
-          >
-            {loading ? '解析中...' : '解析'}
-          </button>
+        {/* ファイルアップロードセクション */}
+        <div className="mb-8 bg-white rounded-lg shadow-md p-6">
+          <h2 className="text-xl font-semibold mb-4">ファイルアップロード</h2>
+
+          {/* 案件選択 */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              案件を選択 <span className="text-red-500">*</span>
+            </label>
+            <select
+              value={selectedProjectId || ''}
+              onChange={(e) => {
+                const projectId = parseInt(e.target.value);
+                setSelectedProjectId(projectId);
+                const project = projects.find((p) => p.id === projectId);
+                if (project) setUploadedBy(project.owner);
+              }}
+              className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+              disabled={uploading}
+            >
+              <option value="">案件を選択してください</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.customer_name} - {project.owner}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* ファイル選択とアップロード */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Excelファイル <span className="text-red-500">*</span>
+              </label>
+              <input
+                id="file-upload"
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={handleFileSelect}
+                disabled={uploading}
+                className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 disabled:opacity-50"
+              />
+              {selectedFile && (
+                <p className="mt-2 text-sm text-gray-600">
+                  選択中: {selectedFile.name} ({(selectedFile.size / 1024).toFixed(1)} KB)
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                アップロード者
+              </label>
+              <input
+                type="text"
+                value={uploadedBy}
+                onChange={(e) => setUploadedBy(e.target.value)}
+                disabled={uploading}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                placeholder="名前を入力"
+              />
+            </div>
+          </div>
+
+          <div className="mt-4">
+            <Button
+              variant="primary"
+              onClick={handleFileUpload}
+              disabled={!selectedFile || !selectedProjectId || uploading}
+            >
+              {uploading ? 'アップロード中...' : 'アップロードしてプレビュー'}
+            </Button>
+          </div>
         </div>
-      </div>
+
+        {/* ファイルパス直接入力（既存ファイル用） */}
+        <div className="mb-6 bg-gray-50 rounded-lg p-4">
+          <h3 className="text-sm font-semibold text-gray-700 mb-2">
+            または、既存ファイルのパスを入力
+          </h3>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={filePath}
+              onChange={(e) => setFilePath(e.target.value)}
+              placeholder="/app/uploads/project_15/test.xlsx"
+              className="flex-1 px-4 py-2 border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button
+              onClick={handleParseFile}
+              disabled={loading}
+              className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:bg-gray-400"
+            >
+              {loading ? '解析中...' : '解析'}
+            </button>
+          </div>
+        </div>
 
       {/* エラー表示 */}
       {error && (
