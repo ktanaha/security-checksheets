@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { parseExcelFile, getSheetPreview } from '../services/excelService';
 import ExcelTable from '../components/organisms/ExcelTable';
+import Button from '../components/atoms/Button';
 import type { SheetInfo, SheetPreviewResponse, CellRange } from '../types/excel';
 
 /**
  * Excelプレビューページ
  */
 const ExcelPreview: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [filePath, setFilePath] = useState('');
   const [sheets, setSheets] = useState<SheetInfo[]>([]);
   const [selectedSheet, setSelectedSheet] = useState<string | null>(null);
@@ -15,9 +19,19 @@ const ExcelPreview: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedRange, setSelectedRange] = useState<CellRange | null>(null);
 
-  // Excelファイル解析
-  const handleParseFile = async () => {
-    if (!filePath) {
+  // クエリパラメータからファイルパスを取得し、自動で解析
+  useEffect(() => {
+    const filePathParam = searchParams.get('filePath');
+    if (filePathParam) {
+      setFilePath(filePathParam);
+      // 自動で解析を実行
+      parseFile(filePathParam);
+    }
+  }, [searchParams]);
+
+  // Excelファイル解析（共通関数）
+  const parseFile = async (path: string) => {
+    if (!path) {
       setError('ファイルパスを入力してください');
       return;
     }
@@ -26,7 +40,7 @@ const ExcelPreview: React.FC = () => {
     setError(null);
 
     try {
-      const result = await parseExcelFile(filePath);
+      const result = await parseExcelFile(path);
       setSheets(result.sheets);
       if (result.sheets.length > 0) {
         setSelectedSheet(result.sheets[0].name);
@@ -36,6 +50,11 @@ const ExcelPreview: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Excelファイル解析（ボタンクリック用）
+  const handleParseFile = async () => {
+    await parseFile(filePath);
   };
 
   // シートプレビュー取得
@@ -68,10 +87,18 @@ const ExcelPreview: React.FC = () => {
   };
 
   return (
-    <div className="container mx-auto p-6">
-      <h1 className="text-3xl font-bold mb-6">Excelプレビュー</h1>
+    <div className="min-h-screen bg-gray-100">
+      <div className="container mx-auto p-6">
+        {/* ヘッダー */}
+        <div className="mb-6">
+          <Button variant="secondary" onClick={() => navigate(-1)}>
+            ← 戻る
+          </Button>
+        </div>
 
-      {/* ファイルパス入力 */}
+        <h1 className="text-3xl font-bold mb-6">Excelプレビュー</h1>
+
+        {/* ファイルパス入力 */}
       <div className="mb-6">
         <div className="flex gap-2">
           <input
@@ -149,6 +176,7 @@ const ExcelPreview: React.FC = () => {
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };

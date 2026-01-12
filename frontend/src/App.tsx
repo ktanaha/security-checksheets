@@ -1,6 +1,9 @@
 import { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import ExcelPreview from './pages/ExcelPreview';
+import ProjectList from './pages/ProjectList';
+import ProjectForm from './pages/ProjectForm';
+import ProjectDetail from './pages/ProjectDetail';
 
 function Home() {
   const [backendHealth, setBackendHealth] = useState<string>('checking...');
@@ -73,11 +76,15 @@ function Home() {
             <h3 className="font-semibold text-blue-900 mb-2">機能</h3>
             <ul className="list-disc list-inside text-blue-800 space-y-1">
               <li>
+                <Link to="/projects" className="underline hover:text-blue-600">
+                  案件管理
+                </Link>
+              </li>
+              <li>
                 <Link to="/excel-preview" className="underline hover:text-blue-600">
                   Excelプレビュー
                 </Link>
               </li>
-              <li>案件管理機能（実装済み）</li>
               <li>ファイルアップロード機能（実装済み）</li>
               <li>ナレッジ検索機能（予定）</li>
             </ul>
@@ -93,6 +100,9 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Home />} />
+        <Route path="/projects" element={<ProjectList />} />
+        <Route path="/projects/new" element={<ProjectForm />} />
+        <Route path="/projects/:id" element={<ProjectDetail />} />
         <Route path="/excel-preview" element={<ExcelPreview />} />
       </Routes>
     </BrowserRouter>
