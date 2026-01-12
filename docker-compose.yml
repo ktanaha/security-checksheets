@@ -1,0 +1,96 @@
+services:
+  # PostgreSQLデータベース
+  postgres:
+    image: postgres:15-alpine
+    container_name: security-checksheets-db
+    environment:
+      POSTGRES_DB: security_checksheets
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+      TZ: 'Asia/Tokyo'
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U admin -d security_checksheets"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
+  # Go APIサーバー（メイン）
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: security-checksheets-backend
+    environment:
+      - GO_ENV=development
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=security_checksheets
+      - DB_USER=admin
+      - DB_PASSWORD=password
+      - EXCEL_SERVICE_URL=http://excel-service:8000
+      - PORT=8080
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend:/app
+      - ./uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - app-network
+    command: air -c .air.toml
+
+  # Python Excel処理サービス
+  excel-service:
+    build:
+      context: ./excel-service
+      dockerfile: Dockerfile
+    container_name: security-checksheets-excel
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PORT=8000
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./excel-service:/app
+      - ./uploads:/app/uploads
+    networks:
+      - app-network
+    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+
+  # Reactフロントエンド
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: security-checksheets-frontend
+    environment:
+      - VITE_API_URL=http://localhost:8080/api
+      - VITE_EXCEL_API_URL=http://localhost:8000
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+      - excel-service
+    networks:
+      - app-network
+    command: npm run dev -- --host
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  app-network:
+    driver: bridge

@@ -1,0 +1,89 @@
+# Claude Code設定ファイル（重要）
+claude.md
+CLAUDE.md
+CLAUDE_*.md
+
+# OS固有ファイル
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# IDE設定
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ログファイル
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 依存関係
+node_modules/
+vendor/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+.venv
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+dist/
+build/
+
+# Go
+*.exe
+*.test
+*.out
+*.o
+*.a
+
+# 環境変数
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ビルド出力
+dist/
+build/
+frontend/dist/
+frontend/build/
+
+# 一時ファイル
+tmp/
+temp/
+*.tmp
+
+# アップロードファイル
+uploads/*
+!uploads/.gitkeep
+
+# データベース
+*.db
+*.sqlite
+*.sqlite3
+
+# Docker
+.dockerignore
+
+# プラン（Claude Code）
+.claude/
