@@ -169,3 +169,98 @@ class ExcelParser:
                     merged_cells_map[cell_coord] = range_str
 
         return merged_cells_map
+
+    def extract_qa(
+        self,
+        file_path: str,
+        sheet_name: str,
+        start_row: int,
+        end_row: int,
+        question_column: int,
+        answer_column: int,
+        department_column: Optional[int] = None,
+        skip_header_rows: int = 1
+    ) -> Dict[str, Any]:
+        """
+        ExcelシートからQ/Aを抽出する
+
+        Args:
+            file_path: Excelファイルのパス
+            sheet_name: シート名
+            start_row: 開始行（1始まり）
+            end_row: 終了行
+            question_column: 質問列番号（1始まり）
+            answer_column: 回答列番号（1始まり）
+            department_column: 担当部門列番号（1始まり、任意）
+            skip_header_rows: スキップするヘッダー行数
+
+        Returns:
+            抽出されたQ/Aデータの辞書
+
+        Raises:
+            FileNotFoundError: ファイルが存在しない場合
+            ValueError: シート名が存在しない場合
+        """
+        if not os.path.exists(file_path):
+            raise FileNotFoundError(f"ファイルが見つかりません: {file_path}")
+
+        wb = load_workbook(file_path, data_only=True)
+
+        if sheet_name not in wb.sheetnames:
+            raise ValueError(f"シート '{sheet_name}' が見つかりません")
+
+        ws = wb[sheet_name]
+
+        # Q/Aアイテムを抽出
+        qa_items = []
+        actual_start_row = start_row + skip_header_rows
+
+        for row in range(actual_start_row, end_row + 1):
+            # 質問セルの値を取得
+            question_cell = ws.cell(row=row, column=question_column)
+            question = str(question_cell.value).strip() if question_cell.value else ""
+
+            # 質問が空の場合はスキップ
+            if not question:
+                continue
+
+            # 回答セルの値を取得
+            answer_cell = ws.cell(row=row, column=answer_column)
+            answer = str(answer_cell.value).strip() if answer_cell.value else None
+
+            # 部門セルの値を取得（指定されている場合）
+            department = None
+            if department_column is not None:
+                dept_cell = ws.cell(row=row, column=department_column)
+                department = str(dept_cell.value).strip() if dept_cell.value else None
+
+            qa_item = {
+                'row_number': row,
+                'question': question,
+                'answer': answer,
+                'department': department
+            }
+            qa_items.append(qa_item)
+
+        # 抽出元の範囲を計算
+        question_col_letter = get_column_letter(question_column)
+        answer_col_letter = get_column_letter(answer_column)
+
+        # 最も左と最も右の列を決定
+        columns = [question_column, answer_column]
+        if department_column is not None:
+            columns.append(department_column)
+        min_col = min(columns)
+        max_col = max(columns)
+
+        min_col_letter = get_column_letter(min_col)
+        max_col_letter = get_column_letter(max_col)
+        source_range = f"{min_col_letter}{start_row}:{max_col_letter}{end_row}"
+
+        return {
+            'file_path': file_path,
+            'sheet_name': sheet_name,
+            'source_range': source_range,
+            'items': qa_items,
+            'total_items': len(qa_items)
+        }

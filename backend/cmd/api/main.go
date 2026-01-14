@@ -37,6 +37,15 @@ func main() {
 	fileUseCase := usecase.NewFileUseCase(fileRepo, projectRepo, "/app/uploads")
 	fileHandler := handler.NewFileHandler(fileUseCase)
 
+	// ナレッジ管理
+	knowledgeRepo := repository.NewKnowledgeRepository(db)
+	knowledgeUseCase := usecase.NewKnowledgeUseCase(knowledgeRepo, projectRepo)
+	knowledgeHandler := handler.NewKnowledgeHandler(knowledgeUseCase)
+
+	// 部門管理
+	departmentRepo := repository.NewDepartmentRepository(db)
+	departmentHandler := handler.NewDepartmentHandler(departmentRepo)
+
 	// Ginルーターの初期化
 	router := gin.Default()
 
@@ -80,6 +89,9 @@ func main() {
 			// 案件に紐づくファイル管理
 			projects.POST("/:id/files", fileHandler.UploadFile)
 			projects.GET("/:id/files", fileHandler.ListFilesByProject)
+
+			// 案件に紐づくナレッジ
+			projects.GET("/:id/knowledge", knowledgeHandler.ListKnowledgeByProject)
 		}
 
 		// ファイル管理エンドポイント
@@ -88,6 +100,20 @@ func main() {
 			files.GET("/:id", fileHandler.GetFile)
 			files.DELETE("/:id", fileHandler.DeleteFile)
 		}
+
+		// ナレッジ管理エンドポイント
+		knowledge := api.Group("/knowledge")
+		{
+			knowledge.POST("", knowledgeHandler.CreateKnowledge)
+			knowledge.POST("/bulk", knowledgeHandler.BulkCreateKnowledge)
+			knowledge.GET("/search", knowledgeHandler.SearchKnowledge)
+			knowledge.GET("/:id", knowledgeHandler.GetKnowledge)
+			knowledge.PUT("/:id", knowledgeHandler.UpdateKnowledge)
+			knowledge.DELETE("/:id", knowledgeHandler.DeleteKnowledge)
+		}
+
+		// 部門管理エンドポイント
+		api.GET("/departments", departmentHandler.ListDepartments)
 	}
 
 	// サーバー起動

@@ -57,3 +57,32 @@ class ErrorResponse(BaseModel):
     """エラーレスポンス"""
     error: str = Field(..., description="エラーメッセージ")
     detail: Optional[str] = Field(None, description="エラー詳細")
+
+
+class ExtractQARequest(BaseModel):
+    """Q/A抽出リクエスト"""
+    file_path: str = Field(..., description="Excelファイルのパス")
+    sheet_name: str = Field(..., description="シート名")
+    start_row: int = Field(..., ge=1, description="開始行（1始まり）")
+    end_row: int = Field(..., ge=1, description="終了行")
+    question_column: int = Field(..., ge=1, description="質問列番号（1始まり）")
+    answer_column: int = Field(..., ge=1, description="回答列番号（1始まり）")
+    department_column: Optional[int] = Field(None, ge=1, description="担当部門列番号（1始まり、任意）")
+    skip_header_rows: int = Field(1, ge=0, description="スキップするヘッダー行数")
+
+
+class QAItem(BaseModel):
+    """抽出されたQ/Aアイテム"""
+    row_number: int = Field(..., description="元の行番号")
+    question: str = Field(..., description="質問")
+    answer: Optional[str] = Field(None, description="回答")
+    department: Optional[str] = Field(None, description="担当部門")
+
+
+class ExtractQAResponse(BaseModel):
+    """Q/A抽出レスポンス"""
+    file_path: str = Field(..., description="ファイルパス")
+    sheet_name: str = Field(..., description="シート名")
+    source_range: str = Field(..., description="抽出元の範囲")
+    items: List[QAItem] = Field(..., description="抽出されたQ/Aアイテムのリスト")
+    total_items: int = Field(..., description="抽出されたアイテム数")

@@ -8,7 +8,10 @@ from app.api.models import (
     SheetPreviewResponse,
     SheetInfo,
     CellData,
-    ErrorResponse
+    ErrorResponse,
+    ExtractQARequest,
+    ExtractQAResponse,
+    QAItem
 )
 from app.services.excel_parser import ExcelParser
 
@@ -115,4 +118,63 @@ async def get_sheet_preview(request: SheetPreviewRequest):
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"シートプレビュー取得中にエラーが発生しました: {str(e)}"
+        )
+
+
+@router.post("/extract-qa", response_model=ExtractQAResponse)
+async def extract_qa(request: ExtractQARequest):
+    """
+    ExcelシートからQ/Aを抽出する
+
+    Args:
+        request: Q/A抽出リクエスト
+
+    Returns:
+        抽出されたQ/Aデータ
+
+    Raises:
+        HTTPException: ファイルが見つからない場合やエラーが発生した場合
+    """
+    try:
+        result = excel_parser.extract_qa(
+            file_path=request.file_path,
+            sheet_name=request.sheet_name,
+            start_row=request.start_row,
+            end_row=request.end_row,
+            question_column=request.question_column,
+            answer_column=request.answer_column,
+            department_column=request.department_column,
+            skip_header_rows=request.skip_header_rows
+        )
+
+        return ExtractQAResponse(
+            file_path=result['file_path'],
+            sheet_name=result['sheet_name'],
+            source_range=result['source_range'],
+            items=[
+                QAItem(
+                    row_number=item['row_number'],
+                    question=item['question'],
+                    answer=item['answer'],
+                    department=item['department']
+                )
+                for item in result['items']
+            ],
+            total_items=result['total_items']
+        )
+
+    except FileNotFoundError as e:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=str(e)
+        )
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Q/A抽出中にエラーが発生しました: {str(e)}"
         )
