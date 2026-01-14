@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { parseExcelFile, getSheetPreview } from '../services/excelService';
 import { getProjects, uploadFile } from '../services/projectService';
 import ExcelTable from '../components/organisms/ExcelTable';
+import QAExtraction from '../components/organisms/QAExtraction';
 import Button from '../components/atoms/Button';
 import type { SheetInfo, SheetPreviewResponse, CellRange } from '../types/excel';
 import type { Project } from '../types/project';
@@ -317,24 +318,38 @@ const ExcelPreview: React.FC = () => {
       {loading && <div className="text-center py-8">読み込み中...</div>}
 
       {previewData && !loading && (
-        <div className="bg-white rounded shadow">
-          <div className="p-4 border-b border-gray-200">
-            <h2 className="text-xl font-semibold">
-              {previewData.sheet_name} - プレビュー
-            </h2>
-            <p className="text-sm text-gray-600">
-              {previewData.total_rows}行 × {previewData.total_columns}列
-            </p>
+        <>
+          <div className="bg-white rounded shadow mb-6">
+            <div className="p-4 border-b border-gray-200">
+              <h2 className="text-xl font-semibold">
+                {previewData.sheet_name} - プレビュー
+              </h2>
+              <p className="text-sm text-gray-600">
+                {previewData.total_rows}行 × {previewData.total_columns}列
+              </p>
+            </div>
+            <div className="p-4">
+              <ExcelTable
+                cells={previewData.cells}
+                totalRows={previewData.total_rows}
+                totalColumns={previewData.total_columns}
+                onRangeSelect={handleRangeSelect}
+              />
+            </div>
           </div>
-          <div className="p-4">
-            <ExcelTable
-              cells={previewData.cells}
-              totalRows={previewData.total_rows}
-              totalColumns={previewData.total_columns}
-              onRangeSelect={handleRangeSelect}
+
+          {/* Q/A抽出機能 */}
+          {selectedProjectId && (
+            <QAExtraction
+              filePath={filePath}
+              sheetName={selectedSheet || ''}
+              projectId={selectedProjectId}
+              onSuccess={() => {
+                alert('ナレッジの保存が完了しました');
+              }}
             />
-          </div>
-        </div>
+          )}
+        </>
       )}
       </div>
     </div>

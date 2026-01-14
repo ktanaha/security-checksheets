@@ -4,6 +4,7 @@ import type {
   SheetPreviewResponse,
   PreviewRequestParams,
 } from '../types/excel';
+import type { ExtractQARequest, ExtractQAResponse } from '../types/knowledge';
 
 const EXCEL_SERVICE_URL = 'http://localhost:8000';
 
@@ -51,6 +52,19 @@ export const getSheetPreview = async (
   const response = await axios.post<SheetPreviewResponse>(
     `${EXCEL_SERVICE_URL}/excel/preview`,
     requestBody
+  );
+  return response.data;
+};
+
+/**
+ * ExcelシートからQ/Aを抽出
+ * @param request Q/A抽出リクエスト
+ * @returns Q/A抽出結果
+ */
+export const extractQA = async (request: ExtractQARequest): Promise<ExtractQAResponse> => {
+  const response = await axios.post<ExtractQAResponse>(
+    `${EXCEL_SERVICE_URL}/excel/extract-qa`,
+    request
   );
   return response.data;
 };
